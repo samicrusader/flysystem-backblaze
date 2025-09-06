@@ -80,6 +80,16 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
         return $fp;
     }
 
+    public function filterB2Listings(array $files): array {
+        $return = array();
+        foreach ($files as $file) {
+            if ($file->getContentType() == 'application/x-bz-hide-marker')
+                continue;
+            $return[] = $this->parseB2File($file);
+        }
+        return $return;
+    }
+
     /* metadata read funcs */
     /**
      * List contents of a directory.
@@ -93,7 +103,6 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function listContents($directory = '', $recursive = false): array
     {
-        $return = array();
         $prefix = $this->applyPathPrefix($directory);
 
         $listing = $this->client->listFilesFromArray([ // listFilesFromArray() will recurse automatically
@@ -101,12 +110,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
             'Prefix' => $prefix
         ]);
 
-        foreach ($listing as $file) {
-            if ($file->getContentType() == 'application/x-bz-hide-marker')
-                // hide hidden files
-                continue;
-            $return[] = $this->parseB2File($file);
-        }
+        $return = $this->filterB2Listings($listing);
 
         /*
          * Backblaze B2's API actually WILL give you directory listings assuming you set `delimiter`, however!
@@ -126,11 +130,14 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function has($path): array|bool
     {
-        $file = $this->client->listFilesFromArray([
+        $listing = $this->client->listFilesFromArray([
             'BucketId' => $this->bucket->getId(),
             'FileName' => $this->applyPathPrefix($path)
         ]);
-        return !empty($file);
+        $file = $this->filterB2Listings($listing);
+        if (empty($file))
+            return false;
+        return $file[0];
     }
 
     /**
@@ -142,13 +149,14 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function getMetadata($path): array|false
     {
-        $file = $this->client->listFilesFromArray([
+        $listing = $this->client->listFilesFromArray([
             'BucketId' => $this->bucket->getId(),
             'FileName' => $this->applyPathPrefix($path)
         ]);
+        $file = $this->filterB2Listings($listing);
         if (empty($file))
             return false;
-        return $this->parseB2File($file[0]);
+        return $file[0];
     }
 
     /**
@@ -160,13 +168,15 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function getSize($path): array|false
     {
-        $file = $this->client->listFilesFromArray([
+        echo "meep!\n";
+        $listing = $this->client->listFilesFromArray([
             'BucketId' => $this->bucket->getId(),
             'FileName' => $this->applyPathPrefix($path)
         ]);
+        $file = $this->filterB2Listings($listing);
         if (empty($file))
             return false;
-        return ['size' => $file[0]->size];
+        return ['size' => $file[0]['size']];
     }
 
     /**
@@ -178,13 +188,14 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function getMimetype($path): array|false
     {
-        $file = $this->client->listFilesFromArray([
+        $listing = $this->client->listFilesFromArray([
             'BucketId' => $this->bucket->getId(),
             'FileName' => $this->applyPathPrefix($path)
         ]);
+        $file = $this->filterB2Listings($listing);
         if (empty($file))
             return false;
-        return ['mimetype' => $file[0]->getContentType()];
+        return ['mimetype' => $file[0]['mimetype']];
     }
 
     /**
@@ -196,13 +207,14 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function getTimestamp($path): array|false
     {
-        $file = $this->client->listFilesFromArray([
+        $listing = $this->client->listFilesFromArray([
             'BucketId' => $this->bucket->getId(),
             'FileName' => $this->applyPathPrefix($path)
         ]);
+        $file = $this->filterB2Listings($listing);
         if (empty($file))
             return false;
-        return ['timestamp' => intval($file[0]->getUploadTimestamp() / 1000)];
+        return ['timestamp' => $file[0]['timestamp']];
     }
 
     /* metadata modify funcs */
