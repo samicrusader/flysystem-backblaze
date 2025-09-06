@@ -2,7 +2,7 @@
 
 use BackblazeB2\File;
 use League\Flysystem\Config;
-use Mhetreramesh\Flysystem\BackblazeAdapter as Backblaze;
+use Samicrusader\Flysystem\BackblazeAdapter as Backblaze;
 
 class BackblazeAdapterTests extends PHPUnit_Framework_TestCase
 {

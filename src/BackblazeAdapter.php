@@ -1,6 +1,6 @@
 <?php
 
-namespace Mhetreramesh\Flysystem;
+namespace Samicrusader\Flysystem;
 
 use BackblazeB2\Client;
 use GuzzleHttp\Psr7;

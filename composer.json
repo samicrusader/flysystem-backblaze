@@ -1,16 +1,16 @@
 {
-    "name": "mhetreramesh/flysystem-backblaze",
+    "name": "samicrusader/flysystem-backblaze",
     "type": "library",
-    "description": "Backblaze adapter for the flysystem filesystem abstraction library",
+    "description": "Connects Backblaze B2 object storage to Flysystem",
     "keywords": ["flysystem", "filesystem", "api", "backblaze", "client"],
-    "homepage": "https://github.com/mhetreramesh/flysystem-backblaze",
+    "homepage": "https://github.com/samicrusader/flysystem-backblaze",
     "license": "MIT",
     "authors": [
         {
-            "name": "Ramesh Mhetre",
-            "email": "mhetreramesh@gmail.com",
-            "homepage": "https://about.me/rameshmhetre",
-            "role": "Developer"
+            "name": "Sami",
+            "email": "github+fsb2",
+            "homepage": "https://samicrusader.me/",
+            "role": "Maintainer"
         }
     ],
     "require": {
@@ -27,12 +27,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Mhetreramesh\\Flysystem\\": "src"
+            "Samicrusader\\Flysystem\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Mhetreramesh\\Flysystem\\Tests\\": "tests"
+            "Samicrusader\\Flysystem\\Tests\\": "tests"
         }
     },
     "scripts": {
