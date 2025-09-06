@@ -80,14 +80,29 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
         return $fp;
     }
 
-    public function filterB2Listings(array $files): array {
+    public function filterB2Listings(array $files, bool $parse = true): array {
         $return = array();
         foreach ($files as $file) {
             if ($file->getContentType() == 'application/x-bz-hide-marker')
                 continue;
-            $return[] = $this->parseB2File($file);
+            if ($parse)
+                $return[] = $this->parseB2File($file);
+            else
+                $return[] = $file;
         }
         return $return;
+    }
+
+    public function searchB2File(string $path, bool $parse = true): array|bool
+    {
+        $listing = $this->client->listFilesFromArray([
+            'BucketId' => $this->bucket->getId(),
+            'FileName' => $this->applyPathPrefix($path)
+        ]);
+        $file = $this->filterB2Listings($listing, $parse);
+        if (empty($file))
+            return false;
+        return $file[0];
     }
 
     /* metadata read funcs */
@@ -130,14 +145,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function has($path): array|bool
     {
-        $listing = $this->client->listFilesFromArray([
-            'BucketId' => $this->bucket->getId(),
-            'FileName' => $this->applyPathPrefix($path)
-        ]);
-        $file = $this->filterB2Listings($listing);
-        if (empty($file))
-            return false;
-        return $file[0];
+        return $this->searchB2File($path);
     }
 
     /**
@@ -149,14 +157,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function getMetadata($path): array|false
     {
-        $listing = $this->client->listFilesFromArray([
-            'BucketId' => $this->bucket->getId(),
-            'FileName' => $this->applyPathPrefix($path)
-        ]);
-        $file = $this->filterB2Listings($listing);
-        if (empty($file))
-            return false;
-        return $file[0];
+        return $this->searchB2File($path);
     }
 
     /**
@@ -168,15 +169,10 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function getSize($path): array|false
     {
-        echo "meep!\n";
-        $listing = $this->client->listFilesFromArray([
-            'BucketId' => $this->bucket->getId(),
-            'FileName' => $this->applyPathPrefix($path)
-        ]);
-        $file = $this->filterB2Listings($listing);
-        if (empty($file))
+        $file = $this->searchB2File($path);
+        if (!$file)
             return false;
-        return ['size' => $file[0]['size']];
+        return ['size' => $file['size']];
     }
 
     /**
@@ -188,14 +184,10 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function getMimetype($path): array|false
     {
-        $listing = $this->client->listFilesFromArray([
-            'BucketId' => $this->bucket->getId(),
-            'FileName' => $this->applyPathPrefix($path)
-        ]);
-        $file = $this->filterB2Listings($listing);
-        if (empty($file))
+        $file = $this->searchB2File($path);
+        if (!$file)
             return false;
-        return ['mimetype' => $file[0]['mimetype']];
+        return ['mimetype' => $file['mimetype']];
     }
 
     /**
@@ -207,14 +199,10 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function getTimestamp($path): array|false
     {
-        $listing = $this->client->listFilesFromArray([
-            'BucketId' => $this->bucket->getId(),
-            'FileName' => $this->applyPathPrefix($path)
-        ]);
-        $file = $this->filterB2Listings($listing);
-        if (empty($file))
+        $file = $this->searchB2File($path);
+        if (!$file)
             return false;
-        return ['timestamp' => $file[0]['timestamp']];
+        return ['timestamp' => $file['timestamp']];
     }
 
     /* metadata modify funcs */
@@ -225,7 +213,16 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function rename($path, $newpath)
     {
-        // TODO: Implement rename() method.
+        $file = $this->searchB2File($path, false);
+        if (!$file)
+            return false;
+        $this->client->copyFile([
+            'BucketName' => $this->bucket,
+            'SourceFileId' => $file[0]->getFileId(),
+            'DestinationFileName' => $this->applyPathPrefix($newpath)
+        ]);
+        $this->client->deleteFile($file[0]);
+        return true;
     }
 
     /**
@@ -235,7 +232,15 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function copy($path, $newpath)
     {
-        // TODO: Implement copy() method.
+        $file = $this->searchB2File($path, false);
+        if (!$file)
+            return false;
+        $this->client->copyFile([
+            'BucketName' => $this->bucket,
+            'SourceFileId' => $file[0]->getFileId(),
+            'DestinationFileName' => $this->applyPathPrefix($newpath)
+        ]);
+        return true;
     }
 
     /**
@@ -244,7 +249,11 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function delete($path)
     {
-        // TODO: Implement delete() method.
+        $file = $this->searchB2File($path, false);
+        if (!$file)
+            return false;
+        $this->client->deleteFile($file[0]);
+        return true;
     }
 
     /**
