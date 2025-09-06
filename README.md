@@ -1,89 +1,45 @@
 # flysystem-backblaze
 
-[![Author](http://img.shields.io/badge/author-@mhetreramesh-blue.svg?style=flat-square)](https://twitter.com/mhetreramesh)
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/mhetreramesh/flysystem-backblaze.svg?style=flat-square)](https://packagist.org/packages/mhetreramesh/flysystem-backblaze)
-[![Software License][ico-license]](LICENSE.md)
-[![Build Status](https://img.shields.io/travis/gliterd/flysystem-backblaze/master.svg?style=flat-square)](https://travis-ci.org/gliterd/flysystem-backblaze)
-[![Coverage Status][ico-scrutinizer]][link-scrutinizer]
-[![Quality Score][ico-code-quality]][link-code-quality]
-[![Total Downloads](https://img.shields.io/packagist/dt/mhetreramesh/flysystem-backblaze.svg?style=flat-square)](https://packagist.org/packages/mhetreramesh/flysystem-backblaze)
+<!-- [![Latest Version on Packagist][ico-version]][link-packagist] -->
+[![Software License][ico-license]](LICENSE)
 
-Visit (https://secure.backblaze.com/b2_buckets.htm) and get your account id, application key.
+Connects Backblaze B2 object storage to Flysystem v1.0; forked from gliterd/mhetreramesh for use with XenForo because Backblaze's S3 implementation is AIDS.
 
-The Backblaze adapter gives the possibility to use the Flysystem filesystem abstraction library with backblaze. It uses the [Backblaze B2 SDK](https://github.com/cwhite92/b2-sdk-php) to communicate with the API.
-
-## Install
-
-Via Composer
+This fork/rewrite uses [obregonco/backblaze-b2](https://github.com/obregonco/backblaze-b2) since it supports B2 API version 2 and also was updated in the last year.
 
 ``` bash
-$ composer require mhetreramesh/flysystem-backblaze
+$ composer require samicrusader/flysystem-backblaze
 ```
+
+XF install instructions coming soon
 
 ## Usage
 
-``` php
-use Mhetreramesh\Flysystem\BackblazeAdapter;
+You will need:
+- `$accountId` -> Master Application Key `keyID`
+- `$keyId` -> `keyID` (if you are using the master application key **which you shouldn't be**, you can omit this)
+- `$applicationKey` => `applicationKey`
+
+You can find these on the <https://secure.backblaze.com/app_keys.htm> page. 
+
+```php
+use obregonco\B2\Client;
+use Samicrusader\Flysystem\BackblazeAdapter;
 use League\Flysystem\Filesystem;
-use BackblazeB2\Client;
 
-$client = new Client($accountId, $applicationKey);
-$adapter = new BackblazeAdapter($client,$bucketName);
+$client = new Client(
+    accountId: 'xxxxxxxxxxxx', 
+    authorizationValues: [
+        'keyId' => 'xxxxxxxxxxxxxxxxxxxxxxxxx', /* optional if using master account key */
+        'applicationKey' => 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    ]
+);
+$client->version = 2; // client defaults to v1 for some reason
 
+$adapter = new BackblazeAdapter($client, $bucketName);
 $filesystem = new Filesystem($adapter);
 ```
-## Using ApplicationKey instead of MasterKey
-If you specify only the $bucketName when creating the BackblazeAdapter, your application key must be the master key.
-However, if you specify both bucket name and bucket id, you do not need the master key and can use a single-bucket key.
-Fetch your bucket id using the [b2 command line tool](https://www.backblaze.com/b2/docs/quick_command_line.html) `b2 get-bucket <bucketName>` 
-``` php
-$client = new Client($accountId, $applicationKey);
-$adapter = new BackblazeAdapter($client, $bucketName, $bucketId);
-```
-
-
-## Documentation
-Here is the [complete guide](https://flysystem.thephpleague.com/docs/usage/filesystem-api/) of all available options.
-
-
-## Change log
-
-Please see [CHANGELOG](CHANGELOG.md) for more information what has changed recently.
-
-## Testing
-
-``` bash
-$ composer test
-```
-
-## Contributing
-
-Please see [CONTRIBUTING](CONTRIBUTING.md) and [CONDUCT](CONDUCT.md) for details.
-
-## Security
-
-If you discover any security related issues, please email mhetreramesh@gmail.com instead of using the issue tracker.
-
-## Credits
-
-- [Ramesh Mhetre][link-author]
-- [All Contributors][link-contributors]
-
-## License
-
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
 
 [ico-version]: https://img.shields.io/packagist/v/mhetreramesh/flysystem-backblaze.svg?style=flat-square
 [ico-license]: https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square
-[ico-travis]: https://img.shields.io/travis/gliterd/flysystem-backblaze/master.svg?style=flat-square
-[ico-scrutinizer]: https://img.shields.io/scrutinizer/coverage/g/gliterd/flysystem-backblaze.svg?style=flat-square
-[ico-code-quality]: https://img.shields.io/scrutinizer/g/gliterd/flysystem-backblaze.svg?style=flat-square
-[ico-downloads]: https://img.shields.io/packagist/dt/mhetreramesh/flysystem-backblaze.svg?style=flat-square
-
 [link-packagist]: https://packagist.org/packages/mhetreramesh/flysystem-backblaze
-[link-travis]: https://travis-ci.org/gliterd/flysystem-backblaze
-[link-scrutinizer]: https://scrutinizer-ci.com/g/gliterd/flysystem-backblaze/code-structure
-[link-code-quality]: https://scrutinizer-ci.com/g/gliterd/flysystem-backblaze
-[link-downloads]: https://packagist.org/packages/mhetreramesh/flysystem-backblaze
-[link-author]: https://github.com/mhetreramesh
-[link-contributors]: ../../contributors
