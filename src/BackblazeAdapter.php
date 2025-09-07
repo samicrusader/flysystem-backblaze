@@ -7,6 +7,7 @@ use League\Flysystem\Adapter\CanOverwriteFiles;
 use League\Flysystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
 use League\Flysystem\AdapterInterface;
 use obregonco\B2\Client;
+use obregonco\B2\Bucket;
 use obregonco\B2\File as B2File;
 use League\Flysystem\Config;
 use League\Flysystem\Util;
@@ -14,19 +15,19 @@ use League\Flysystem\Util;
 class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanOverwriteFiles
 {
     use NotSupportingVisibilityTrait;
-    protected $client;
-    protected $bucket;
-    protected $streamReads;
+    protected Client $client;
+    protected Bucket $bucket;
+    protected bool $streamReads;
 
     /**
      * Initializes the adapter.
      *
      * @param Client $client
-     * @param $bucket
-     * @param $pathPrefix
-     * @param $streamReads
+     * @param string $bucket
+     * @param string $pathPrefix
+     * @param bool $streamReads
      */
-    public function __construct(Client $client, $bucket, $pathPrefix = '', $streamReads = true)
+    public function __construct(Client $client, string $bucket, string $pathPrefix = '', bool $streamReads = true)
     {
         $this->client = $client;
         $this->bucket = $this->client->getBucketFromName($bucket);
@@ -207,11 +208,14 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
 
     /* metadata modify funcs */
     /**
-     * @param $path
-     * @param $newpath
+     * Rename a file.
+     *
+     * @param string $path
+     * @param string $newpath
+     *
      * @return bool
      */
-    public function rename($path, $newpath)
+    public function rename($path, $newpath): bool
     {
         $file = $this->searchB2File($path, false);
         if (!$file)
@@ -226,11 +230,14 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
     }
 
     /**
-     * @param $path
-     * @param $newpath
+     * Copy a file.
+     *
+     * @param string $path
+     * @param string $newpath
+     *
      * @return bool
      */
-    public function copy($path, $newpath)
+    public function copy($path, $newpath): bool
     {
         $file = $this->searchB2File($path, false);
         if (!$file)
@@ -244,10 +251,13 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
     }
 
     /**
-     * @param $path
+     * Delete a file.
+     *
+     * @param string $path
+     *
      * @return bool
      */
-    public function delete($path)
+    public function delete($path): bool
     {
         $file = $this->searchB2File($path, false);
         if (!$file)
@@ -257,12 +267,36 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
     }
 
     /**
-     * @param $dirname
+     * Delete a directory.
+     *
+     * This works the same as a recursive erase. Files that are marked hidden are skipped over.
+     * Backblaze will hide the files until they expire.
+     *
+     * @param string $dirname
+     *
      * @return bool
      */
-    public function deleteDir($dirname)
+    public function deleteDir($dirname): bool
     {
-        // TODO: Implement deleteDir() method.
+        $prefix = $this->applyPathPrefix($dirname);
+
+        $listing = $this->client->listFilesFromArray([ // listFilesFromArray() will recurse automatically
+            'BucketId' => $this->bucket->getId(),
+            'Prefix' => $prefix
+        ]);
+        if (empty($listing)) {
+            return false;
+        }
+
+        $has_deleted = false;
+
+        foreach ($listing as $file) {
+            if ($file->getContentType() == 'application/x-bz-hide-marker')
+                continue; // these get auto-removed
+            $this->client->deleteFile($file);
+            $has_deleted = true;
+        }
+        return $has_deleted;
     }
 
     /**
