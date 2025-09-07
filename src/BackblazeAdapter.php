@@ -81,6 +81,13 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
         return $fp;
     }
 
+    /**
+     * Filters listings for non-hidden files.
+     *
+     * @param array $files
+     * @param bool $parse
+     * @return array
+     */
     public function filterB2Listings(array $files, bool $parse = true): array {
         $return = array();
         foreach ($files as $file) {
@@ -94,6 +101,13 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
         return $return;
     }
 
+    /**
+     * Searches for a specific filename in a bucket.
+     *
+     * @param string $path
+     * @param bool $parse
+     * @return array|bool
+     */
     public function searchB2File(string $path, bool $parse = true): array|bool
     {
         $listing = $this->client->listFilesFromArray([
@@ -300,13 +314,21 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
     }
 
     /**
-     * @param $dirname
+     * Create a directory.
+     *
+     * Stub function
+     *
+     * @param string $dirname directory name
      * @param Config $config
-     * @return array|false
+     *
+     * @return array
      */
-    public function createDir($dirname, Config $config)
+    public function createDir($dirname, Config $config): array
     {
-        // TODO: Implement createDir() method.
+        $fp = array();
+        $fp['path'] = $this->removePathPrefix($dirname);
+        $fp['type'] = 'dir';
+        return $fp;
     }
 
     /* data write funcs */
