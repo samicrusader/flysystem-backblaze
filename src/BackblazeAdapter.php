@@ -371,7 +371,61 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function writeStream($path, $resource, Config $config): array|false
     {
-        // TODO: Implement writeStream() method.
+        // Make sure that we actually have a size. This fails otherwise.
+        $stat = fstat($resource);
+        if (empty($stat['size']))
+            return false;
+
+        // Prepare for uploading the parts of a large file.
+        $payload = [
+            'bucketId' => $this->bucket->getId(),
+            'fileName' => $this->applyPathPrefix($path),
+            'contentType' => $config->get('mimetype', 'b2/x-auto')
+        ];
+        if ($config->has('timestamp'))
+            $payload['fileInfo'] = ['src_last_modified_millis' => $config->get('timestamp')];
+        $response = $this->client->request('POST', '/b2_start_large_file', ['json' => $payload]);
+        $fileId = $response['fileId'];
+
+        $hashList = [];
+        $partSize = 10 * 1000 * 1000;
+        if ($stat['size'] < $partSize) // Large files must have atleast 2 parts and part #1 must be atleast 5 MB
+            $partSize = 5 * 1000 * 1000;
+        $partsCount = ceil($stat['size'] / $partSize);
+
+        for ($i = 1; $i <= $partsCount; $i++) {
+            $chunk = fread($resource, $partSize);
+            $hash = sha1($chunk);
+            $hashList[] = $hash;
+
+            // Retrieve the URL that we should be uploading to.
+            $response = $this->client->request('POST', '/b2_get_upload_part_url', [
+                'json' => [
+                    'fileId' => $fileId,
+                ],
+            ]);
+
+            // Upload chunk
+            $response = $this->client->request('POST', $response['uploadUrl'], [
+                'headers' => [
+                    'Authorization' => $response['authorizationToken'],
+                    'X-Bz-Part-Number' => $i,
+                    'Content-Length' => mb_strlen($chunk, '8bit'),
+                    'X-Bz-Content-Sha1' => $hash,
+                ],
+                'body' => $chunk
+            ]);
+        }
+
+        // Finish upload of large file
+        $response = $this->client->request('POST', '/b2_finish_large_file', [
+            'json' => [
+                'fileId' => $fileId,
+                'partSha1Array' => $hashList,
+            ],
+        ]);
+
+        return $this->parseB2File(new B2File($response));
     }
 
     /**
