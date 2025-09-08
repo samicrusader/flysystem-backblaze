@@ -6,7 +6,7 @@ use League\Flysystem\Adapter\AbstractAdapter;
 use League\Flysystem\Adapter\CanOverwriteFiles;
 use League\Flysystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
 use League\Flysystem\AdapterInterface;
-use obregonco\B2\Client;
+use Samicrusader\Flysystem\BackblazeClient as Client;
 use obregonco\B2\Bucket;
 use obregonco\B2\File as B2File;
 use League\Flysystem\Config;
@@ -22,7 +22,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
     /**
      * Initializes the adapter.
      *
-     * @param Client $client
+     * @param BackblazeClient $client
      * @param string $bucket
      * @param string $pathPrefix
      * @param bool $streamReads
@@ -70,12 +70,13 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      * @param B2File $file
      * @return array
      */
-    public function parseB2File(B2File $file): array {
+    private function parseB2File(B2File $file): array {
         $fp = [];
         $fp['type'] = 'file';
         $fp['path'] = $this->removePathPrefix($file->getFileName());
         $fp['timestamp'] = intval($file->getUploadTimestamp() / 1000);
-        $fp['size'] = $file->size; // WTF?
+        if (isset($file->size))
+            $fp['size'] = $file->size;
         $fp['dirname'] = Util::normalizeDirname(dirname($fp['path'])); // needed for emulateDirectories
         $fp['mimetype'] = $file->getContentType();
         return $fp;
@@ -88,7 +89,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      * @param bool $parse
      * @return array
      */
-    public function filterB2Listings(array $files, bool $parse = true): array {
+    private function filterB2Listings(array $files, bool $parse = true): array {
         $return = array();
         foreach ($files as $file) {
             if ($file->getContentType() == 'application/x-bz-hide-marker')
@@ -108,7 +109,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      * @param bool $parse
      * @return array|bool
      */
-    public function searchB2File(string $path, bool $parse = true): array|bool
+    private function searchB2File(string $path, bool $parse = true): array|bool
     {
         $listing = $this->client->listFilesFromArray([
             'BucketId' => $this->bucket->getId(),
@@ -118,6 +119,13 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
         if (empty($file))
             return false;
         return $file[0];
+    }
+
+    private function setupB2Upload(string $path, Config $config, array &$writeOptions): void {
+        $writeOptions['BucketId'] = $this->bucket->getId();
+        $writeOptions['FileName'] = $this->applyPathPrefix($path);
+        $writeOptions['FileLastModified'] = $config->get('timestamp');
+        $writeOptions['FileContentType'] = $config->get('mimetype', 'b2/x-auto');
     }
 
     /* metadata read funcs */
@@ -341,10 +349,15 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      *
      * @return array|false false on failure file meta data on success
      */
-    public function write($path, $contents, Config $config)
+    public function write($path, $contents, Config $config): array|false
     {
-        // uploadStandardFile
-        // TODO: Implement write() method.
+        $writeOptions = array();
+        $writeOptions['Body'] = $contents;
+        $this->setupB2Upload($path, $config, $writeOptions);
+        $writeOptions['size'] = mb_strlen($contents, '8bit');
+        $writeOptions['hash'] = sha1($contents);
+        $file = $this->client->uploadStandardFile($writeOptions);
+        return $this->parseB2File($file);
     }
 
     /**
@@ -356,9 +369,8 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      *
      * @return array|false false on failure file meta data on success
      */
-    public function writeStream($path, $resource, Config $config)
+    public function writeStream($path, $resource, Config $config): array|false
     {
-        // uploadLargeFile
         // TODO: Implement writeStream() method.
     }
 
@@ -373,7 +385,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      *
      * @return array|false false on failure file meta data on success
      */
-    public function update($path, $contents, Config $config)
+    public function update($path, $contents, Config $config): array|false
     {
         return $this->write($path, $contents, $config);
     }
@@ -389,7 +401,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      *
      * @return array|false false on failure file meta data on success
      */
-    public function updateStream($path, $resource, Config $config)
+    public function updateStream($path, $resource, Config $config): array|false
     {
         return $this->writeStream($path, $resource, $config);
     }

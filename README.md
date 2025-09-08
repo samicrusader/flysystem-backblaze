@@ -23,11 +23,11 @@ You will need:
 You can find these on the <https://secure.backblaze.com/app_keys.htm> page. 
 
 ```php
-use obregonco\B2\Client;
+use Samicrusader\Flysystem\BackblazeClient;
 use Samicrusader\Flysystem\BackblazeAdapter;
 use League\Flysystem\Filesystem;
 
-$client = new Client(
+$client = new BackblazeClient(
     accountId: 'xxxxxxxxxxxx', 
     authorizationValues: [
         'keyId' => 'xxxxxxxxxxxxxxxxxxxxxxxxx', /* optional if using master account key */
