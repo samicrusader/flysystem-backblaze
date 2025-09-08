@@ -333,65 +333,107 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
 
     /* data write funcs */
     /**
-     * @param $path
-     * @param $contents
-     * @param Config $config
-     * @return array|false
+     * Write a new file.
+     *
+     * @param string $path
+     * @param string $contents
+     * @param Config $config   Config object
+     *
+     * @return array|false false on failure file meta data on success
      */
     public function write($path, $contents, Config $config)
     {
+        // uploadStandardFile
         // TODO: Implement write() method.
     }
 
     /**
-     * @param $path
-     * @param $resource
-     * @param Config $config
-     * @return array|false
+     * Write a new file using a stream.
+     *
+     * @param string   $path
+     * @param resource $resource
+     * @param Config   $config   Config object
+     *
+     * @return array|false false on failure file meta data on success
      */
     public function writeStream($path, $resource, Config $config)
     {
+        // uploadLargeFile
         // TODO: Implement writeStream() method.
     }
 
     /**
-     * @param $path
-     * @param $contents
-     * @param Config $config
-     * @return array|false
+     * Update a file.
+     *
+     * This internally just calls $this->write(). B2 will hide and then auto-delete the old file.
+     *
+     * @param string $path
+     * @param string $contents
+     * @param Config $config   Config object
+     *
+     * @return array|false false on failure file meta data on success
      */
     public function update($path, $contents, Config $config)
     {
-        // TODO: Implement update() method.
+        return $this->write($path, $contents, $config);
     }
 
     /**
-     * @param $path
-     * @param $resource
-     * @param Config $config
-     * @return array|false
+     * Update a file using a stream.
+     *
+     * This internally just calls $this->write(). B2 will hide and then auto-delete the old file.
+     *
+     * @param string   $path
+     * @param resource $resource
+     * @param Config   $config   Config object
+     *
+     * @return array|false false on failure file meta data on success
      */
     public function updateStream($path, $resource, Config $config)
     {
-        // TODO: Implement updateStream() method.
+        return $this->writeStream($path, $resource, $config);
     }
 
     /* data read funcs */
     /**
-     * @param $path
-     * @return mixed
+     * Read a file.
+     *
+     * @param string $path
+     *
+     * @return array|false
      */
-    public function read($path)
+    public function read($path): array|false
     {
-        // TODO: Implement read() method.
+        try {
+            $file = $this->client->download([
+                'BucketName' => $this->bucket->getName(),
+                'FileName' => $this->applyPathPrefix($path),
+                'stream' => false
+            ]);
+        } catch (\GuzzleHttp\Exception\ClientException) {
+            return false;
+        }
+        return ['contents' => $file];
     }
 
     /**
-     * @param $path
-     * @return mixed
+     * Read a file as a stream.
+     *
+     * @param string $path
+     *
+     * @return array|false
      */
-    public function readStream($path)
+    public function readStream($path): array|false
     {
-        // TODO: Implement readStream() method.
+        try {
+            $file = $this->client->download([
+                'BucketName' => $this->bucket->getName(),
+                'FileName' => $this->applyPathPrefix($path),
+                'stream' => true
+            ]);
+        } catch (\GuzzleHttp\Exception\ClientException) {
+            return false;
+        }
+        return ['stream' => $file];
     }
 }
