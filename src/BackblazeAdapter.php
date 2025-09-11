@@ -107,9 +107,9 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      *
      * @param string $path
      * @param bool $parse
-     * @return array|bool
+     * @return array|B2File|bool
      */
-    private function searchB2File(string $path, bool $parse = true): array|bool
+    private function searchB2File(string $path, bool $parse = true): array|B2File|bool
     {
         $listing = $this->client->listFilesFromArray([
             'BucketId' => $this->bucket->getId(),
@@ -244,10 +244,10 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
             return false;
         $this->client->copyFile([
             'BucketName' => $this->bucket,
-            'SourceFileId' => $file[0]->getFileId(),
+            'SourceFileId' => $file->getFileId(),
             'DestinationFileName' => $this->applyPathPrefix($newpath)
         ]);
-        $this->client->deleteFile($file[0]);
+        $this->client->deleteFile($file);
         return true;
     }
 
@@ -266,7 +266,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
             return false;
         $this->client->copyFile([
             'BucketName' => $this->bucket,
-            'SourceFileId' => $file[0]->getFileId(),
+            'SourceFileId' => $file->getFileId(),
             'DestinationFileName' => $this->applyPathPrefix($newpath)
         ]);
         return true;
@@ -284,7 +284,7 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
         $file = $this->searchB2File($path, false);
         if (!$file)
             return false;
-        $this->client->deleteFile($file[0]);
+        $this->client->deleteFile($file);
         return true;
     }
 
