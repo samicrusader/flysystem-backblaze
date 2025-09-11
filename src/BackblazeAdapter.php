@@ -375,6 +375,17 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
         $stat = fstat($resource);
         if (empty($stat['size']))
             return false;
+        if ($stat['size'] < 10 * 1000 * 1000) {
+            // If the file is under 10 MB (twice the minimum part size) we will just call $this->write
+            $contents = fread($resource, $stat['size']); // pull data from stream
+            return $this->write($path, $contents, $config);
+        }
+
+        $hashList = [];
+        $partSize = 10 * 1000 * 1000;
+        if ($stat['size'] < $partSize) // Large files must have atleast 2 parts and part #1 must be atleast 5 MB
+            $partSize = 5 * 1000 * 1000;
+        $partsCount = ceil($stat['size'] / $partSize);
 
         // Prepare for uploading the parts of a large file.
         $payload = [
@@ -386,12 +397,6 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
             $payload['fileInfo'] = ['src_last_modified_millis' => $config->get('timestamp')];
         $response = $this->client->request('POST', '/b2_start_large_file', ['json' => $payload]);
         $fileId = $response['fileId'];
-
-        $hashList = [];
-        $partSize = 10 * 1000 * 1000;
-        if ($stat['size'] < $partSize) // Large files must have atleast 2 parts and part #1 must be atleast 5 MB
-            $partSize = 5 * 1000 * 1000;
-        $partsCount = ceil($stat['size'] / $partSize);
 
         for ($i = 1; $i <= $partsCount; $i++) {
             $chunk = fread($resource, $partSize);
@@ -491,8 +496,11 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
      */
     public function readStream($path): array|false
     {
+        $file = $this->searchB2File($path);
+        if (!$file)
+            return false;
         try {
-            $file = $this->client->download([
+            $response = $this->client->download([
                 'BucketName' => $this->bucket->getName(),
                 'FileName' => $this->applyPathPrefix($path),
                 'stream' => true
@@ -500,6 +508,8 @@ class BackblazeAdapter extends AbstractAdapter implements AdapterInterface, CanO
         } catch (\GuzzleHttp\Exception\ClientException) {
             return false;
         }
-        return ['stream' => $file];
+        var_dump($file);
+        $file['stream'] = $response->detach();
+        return $file;
     }
 }
